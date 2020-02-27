@@ -2,25 +2,76 @@
 
 import sys
 
+
+    # f'self.{i.keys}' = 
+# for i in OPCODES:
+#     print(vars('self').i)
+
 class CPU:
     """Main CPU class."""
 
     def __init__(self):
         """Construct a new CPU."""
+        self.OPCODES = {
+    "ADD":  {"type": 2, "code": "10100000"},
+    "AND":  {"type": 2, "code": "10101000"},
+    "CALL": {"type": 1, "code": "01010000"},
+    "CMP":  {"type": 2, "code": "10100111"},
+    "DEC":  {"type": 1, "code": "01100110"},
+    "DIV":  {"type": 2, "code": "10100011"},
+    "HLT":  {"type": 0, "code": "00000001"},
+    "INC":  {"type": 1, "code": "01100101"},
+    "INT":  {"type": 1, "code": "01010010"},
+    "IRET": {"type": 0, "code": "00010011"},
+    "JEQ":  {"type": 1, "code": "01010101"},
+    "JGE":  {"type": 1, "code": "01011010"},
+    "JGT":  {"type": 1, "code": "01010111"},
+    "JLE":  {"type": 1, "code": "01011001"},
+    "JLT":  {"type": 1, "code": "01011000"},
+    "JMP":  {"type": 1, "code": "01010100"},
+    "JNE":  {"type": 1, "code": "01010110"},
+    "LD":   {"type": 2, "code": "10000011"},
+    "LDI":  {"type": 8, "code": "10000010"},
+    "MOD":  {"type": 2, "code": "10100100"},
+    "MUL":  {"type": 2, "code": "10100010"},
+    "NOP":  {"type": 0, "code": "00000000"},
+    "NOT":  {"type": 1, "code": "01101001"},
+    "OR":   {"type": 2, "code": "10101010"},
+    "POP":  {"type": 1, "code": "01000110"},
+    "PRA":  {"type": 1, "code": "01001000"},
+    "PRN":  {"type": 1, "code": "01000111"},
+    "PUSH": {"type": 1, "code": "01000101"},
+    "RET":  {"type": 0, "code": "00010001"},
+    "SHL":  {"type": 2, "code": "10101100"},
+    "SHR":  {"type": 2, "code": "10101101"},
+    "ST":   {"type": 2, "code": "10000100"},
+    "SUB":  {"type": 2, "code": "10100001"},
+    "XOR":  {"type": 2, "code": "10101011"},
+                    }
         self.ram = [0] * 256
         self.reg = [0] * 8
+        self.SP = 7
+        self.reg[self.SP] = 0xF4
         self.pc = 0
         
         # Instructions:
+        for i in self.OPCODES:
+            vars(self)[i] = int(self.OPCODES[i]['code'], 2)
+            # print(bin(int(self.OPCODES[i]['code'], 2)))
+            # type_pc = bin(vars(self)[i]) >> 6
+            # print(type_pc)
+            # vars(self)[i]['_pc_type'] = int(str(self.OPCODES[i]['code'])[:2],2)
+            # print(vars(self)[i])
         
-        self.HLT            = 1
-        self.PRINT_NUM      = 3
-        self.SAVE           = 130  # Save a value to a register
-        self.PRINT_REGISTER = 71  # Print the value in a register
-        self.ADD            = 6 
-        self.SUB            = 7
-        self.MUL            = 162
-        self.DIV            = 9
+        
+        # self.HLT            = 1
+        # self.PRINT_NUM      = 3
+        # self.SAVE           = 130  # Save a value to a register
+        # self.PRINT_REGISTER = 71  # Print the value in a register
+        # self.ADD            = 6 
+        # self.SUB            = 7
+        # self.MUL            = 162
+        # self.DIV            = 9
 
     def load(self, program):
         """Load a program into memory."""
@@ -48,13 +99,13 @@ class CPU:
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
         
-        if op == "ADD":
+        if op == self.ADD:
             self.reg[reg_a] += self.reg[reg_b]
-        elif op == "SUB":
+        elif op == self.SUB:
             self.reg[reg_a] -= self.reg[reg_b]
-        elif op == 162:
+        elif op == self.MUL:
             self.reg[reg_a] *= self.reg[reg_b]
-        elif op == "DIV":
+        elif op == self.DIV:
             self.reg[reg_a] /= self.reg[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
@@ -89,8 +140,9 @@ class CPU:
         """Run the CPU."""
         
         # ir = [0] * 8
-        math_op = ['ADD', 'SUB', 162, 'DIV']
+        math_op = [self.ADD, self.SUB, self.MUL, self.DIV]
         commands = []
+        
         with open(sys.argv[1], "r") as f:
             line = f.readlines()
             # print(line)
@@ -100,8 +152,9 @@ class CPU:
             else:
                 commands.append(int(i[:8],2))
         f.close()
+        
         self.load(commands)
-        # print(self.ram)
+        
         while True:
             command = self.ram[self.pc]
             if command in math_op:
@@ -109,16 +162,45 @@ class CPU:
                 reg_b = self.ram[self.pc + 2]
                 self.alu(command, reg_a, reg_b)
                 self.pc += 3
-            elif command == self.SAVE:
+            elif command == self.LDI:
                 num = self.ram[self.pc + 2]
                 ir = self.ram[self.pc + 1]
                 self.reg[ir] = num
                 self.pc += 3
-            elif command == self.PRINT_REGISTER:
+            elif command == self.PRN:
                 # Print the value in a register
                 ir = self.ram[self.pc + 1]
                 print(self.reg[ir])
                 self.pc += 2
+            elif command == self.PUSH:
+                
+                self.reg[self.SP] -= 1
+                ir = self.ram[self.pc + 1]
+                reg_val = self.reg[ir]
+                self.ram[self.reg[self.SP]] = reg_val
+                
+                self.pc += 2
+                
+            elif command == self.POP:
+                ram_value = self.ram[self.reg[self.SP]]
+                ir = self.ram[self.pc + 1]
+                self.reg[ir] = ram_value
+                self.reg[self.SP] += 1
+                
+                self.pc += 2
+                
+            elif command == self.CALL:
+                return_address = self.pc + 2
+                self.reg[self.SP] -= 1
+                self.ram[self.reg[self.SP]] = return_address
+                
+                reg_num = self.ram[self.pc + 1]
+                self.pc = self.reg[reg_num]
+                
+            elif command == self.RET:
+                self.pc = self.ram[self.reg[self.SP]]
+                self.reg[self.SP] += 1
+            
             elif command == self.HLT:
                 sys.exit(0)
             else:
