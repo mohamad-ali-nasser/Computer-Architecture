@@ -53,6 +53,7 @@ class CPU:
         self.SP = 7
         self.reg[self.SP] = 0xF4
         self.pc = 0
+        self.fl = 0b00000000
         
         # Instructions:
         for i in self.OPCODES:
@@ -98,15 +99,31 @@ class CPU:
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
+        a_value = self.reg[reg_a]
+        b_value = self.reg[reg_b]
         
         if op == self.ADD:
-            self.reg[reg_a] += self.reg[reg_b]
+            self.reg[reg_a] += b_value
         elif op == self.SUB:
-            self.reg[reg_a] -= self.reg[reg_b]
+            self.reg[reg_a] -= b_value
         elif op == self.MUL:
-            self.reg[reg_a] *= self.reg[reg_b]
+            self.reg[reg_a] *= b_value
         elif op == self.DIV:
-            self.reg[reg_a] /= self.reg[reg_b]
+            self.reg[reg_a] /= b_value
+        # CMP
+        elif op == self.CMP:
+            if a_value == b_value:
+                self.flag = 0b00000001
+            elif a_value > b_value:
+                self.flag = 0b00000100
+            elif a_value < b_value:
+                self.flag = 0b00000010
+        elif op == self.AND:
+            self.reg[reg_a] = a_value & b_value
+        elif op == self.OR:
+            self.reg[reg_a] = a_value | b_value
+        elif op == self.XOR:
+            self.reg[reg_a] = a_value ^ b_value
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -140,7 +157,9 @@ class CPU:
         """Run the CPU."""
         
         # ir = [0] * 8
-        math_op = [self.ADD, self.SUB, self.MUL, self.DIV]
+        math_op = [self.ADD, self.SUB, self.MUL,
+                   self.DIV, self.CMP, self.AND, 
+                   self.OR, self.XOR]
         commands = []
         
         with open(sys.argv[1], "r") as f:
@@ -154,7 +173,7 @@ class CPU:
         f.close()
         
         self.load(commands)
-        
+        print(commands)
         while True:
             command = self.ram[self.pc]
             if command in math_op:
@@ -162,6 +181,11 @@ class CPU:
                 reg_b = self.ram[self.pc + 2]
                 self.alu(command, reg_a, reg_b)
                 self.pc += 3
+            elif command == self.NOT:
+                reg_a = self.ram[self.pc + 1]
+                a_value = self.reg[reg_a]
+                self.reg[reg_a] = ~a_value
+                self.pc += 2
             elif command == self.LDI:
                 num = self.ram[self.pc + 2]
                 ir = self.ram[self.pc + 1]
@@ -200,6 +224,39 @@ class CPU:
             elif command == self.RET:
                 self.pc = self.ram[self.reg[self.SP]]
                 self.reg[self.SP] += 1
+                
+            elif command == self.JMP:
+                reg_num = self.ram[self.pc + 1]
+                reg_address = self.reg[reg_num]
+                
+                self.pc = reg_address
+                
+            elif command == self.JEQ:
+                if self.flag == 0b00000001:
+                    reg_num = self.ram[self.pc + 1]
+                    reg_address = self.reg[reg_num]
+                
+                    self.pc = reg_address
+                else:
+                    self.pc += 2
+                    
+            elif command == self.JNE:
+                if self.flag != 0b00000001:
+                    reg_num = self.ram[self.pc + 1]
+                    reg_address = self.reg[reg_num]
+                
+                    self.pc = reg_address
+                else:
+                    self.pc += 2
+            
+            elif command == self.ST:
+                reg_b_address = self.ram[self.pc + 2]
+                b_value = self.reg[reg_b_address]
+                reg_a_address = self.ram[self.pc + 1]
+                address_in_a = self.reg[reg_a_address]
+                self.reg[address_in_a] = b_value
+                
+                self.pc += 3
             
             elif command == self.HLT:
                 sys.exit(0)
